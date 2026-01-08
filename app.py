@@ -10,11 +10,61 @@ import re
 import fitz  # PyMuPDF
 from io import BytesIO
 
+# ===================================================================
+# --- CONFIGURAÇÃO DA PÁGINA (DEVE SER O PRIMEIRO COMANDO ST) ---
+# ===================================================================
+st.set_page_config(
+    page_title="Plataforma AlexExpert",
+    page_icon="🔍",
+    layout="wide",  # Ativa o modo tela cheia
+    initial_sidebar_state="expanded"
+)
 
+# --- CSS PARA LARGURA TOTAL E ESTILIZAÇÃO DAS ABAS ---
+st.markdown("""
+    <style>
+        /* Remove margens laterais e aproveita todo o espaço */
+        .block-container {
+            max-width: 100% !important;
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            padding-top: 1rem !important;
+        }
+
+        /* Faz as abas ocuparem a largura total e aumenta a fonte */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+            width: 100%;
+        }
+
+        .stTabs [data-baseweb="tab"] {
+            height: 60px;
+            white-space: pre-wrap;
+            background-color: #f8f9fb;
+            border-radius: 5px 5px 0px 0px;
+            padding: 10px 20px;
+            flex-grow: 1; /* Faz cada aba crescer proporcionalmente */
+            text-align: center;
+        }
+
+        .stTabs [data-baseweb="tab"] p {
+            font-size: 18px !important;
+            font-weight: bold !important;
+            color: #31333F;
+        }
+
+        /* Cor da aba selecionada */
+        .stTabs [aria-selected="true"] {
+            background-color: #e6e9ef !important;
+            border-bottom: 3px solid #ff4b4b !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # ===================================================================
-# --- FUNÇÕES DE UI E LÓGICA ---
+# --- RESTANTE DAS FUNÇÕES DE UI E LÓGICA ---
 # ===================================================================
+
 def analyze_image_with_ai(image_file):
     """Usa a IA para extrair informações estruturadas de uma imagem."""
     model = genai.GenerativeModel("models/gemini-2.5-flash")
@@ -77,8 +127,6 @@ def exibir_graficos_tendencia(dados_laudo, resultados_analise, contexto_key):
     session_state_key = f"historical_df_{contexto_key}"
 
     with st.expander("📊 Ver Gráficos de Tendência Histórica"):
-        
-        # --- LÓGICA DE DATAS CORRIGIDA FINAL ---
         data_coleta_laudo = pd.to_datetime(dados_laudo.get('DataColeta'), errors='coerce')
 
         if pd.isna(data_coleta_laudo):
@@ -86,18 +134,12 @@ def exibir_graficos_tendencia(dados_laudo, resultados_analise, contexto_key):
             start_date_default = end_date_default - pd.DateOffset(months=2)
             st.info("Não foi possível determinar a data do laudo. Sugerindo os últimos 2 meses.")
         else:
-            # A data de FIM padrão é a data do próprio laudo que estamos vendo.
             end_date_default = data_coleta_laudo.date()
-            
-            # Busca a data da coleta ANTERIOR
             data_anterior = backend.get_data_penultima_coleta(cliente, unidade, compartimento, end_date_default)
-            
             if data_anterior:
-                # Se encontrou, a data de INÍCIO é a data anterior.
                 start_date_default = data_anterior.date()
                 st.info(f"Período sugerido: da coleta anterior ({start_date_default.strftime('%d/%m/%Y')}) até a coleta atual.")
             else:
-                # Plano B: se não houver coleta anterior, sugere os últimos 2 meses.
                 start_date_default = end_date_default - pd.DateOffset(months=2)
                 st.info("Nenhuma coleta anterior encontrada. Sugerindo os últimos 2 meses.")
 
@@ -106,7 +148,6 @@ def exibir_graficos_tendencia(dados_laudo, resultados_analise, contexto_key):
             start_date = st.date_input("Data de Início", value=start_date_default, key=f"start_date_{contexto_key}")
         with col_end:
             end_date = st.date_input("Data de Fim", value=end_date_default, key=f"end_date_{contexto_key}")
-        # --- FIM DA LÓGICA DE DATAS ---
 
         if st.button("Gerar Gráficos de Tendência", key=f"btn_gerar_graficos_{contexto_key}"):
             if start_date > end_date:
@@ -127,22 +168,18 @@ def exibir_graficos_tendencia(dados_laudo, resultados_analise, contexto_key):
                 st.info("Não há dados históricos suficientes para gerar gráficos de tendência.")
             else:
                 st.write(f"Exibindo histórico para: **{cliente} / {unidade} / {compartimento}**")
-                
                 for item in resultados_analise:
                     item_analisado = item.get('item')
                     if item_analisado:
                         fig = backend.generate_plotly_figure_sincronizado(full_history_df, item_analisado)
                         if fig:
                             st.plotly_chart(fig, use_container_width=True)
-        elif session_state_key in st.session_state and st.session_state[session_state_key].empty:
-             st.info("Nenhum dado histórico encontrado para o período selecionado.")
 
 def exibir_opcao_email(dados_laudo, resultados_analise, dados_ia, contexto_key):
     """Exibe um expansor com opções para enviar o relatório por e-mail."""
     with st.expander("✉️ Enviar Relatório por E-mail"):
         email_destinatario = st.text_input("E-mail do destinatário", key=f"email_{contexto_key}")
         incluir_graficos = st.checkbox("Incluir gráficos de tendência no e-mail (último ano)", key=f"check_graficos_{contexto_key}")
-        
         if st.button("Enviar E-mail", key=f"btn_email_{contexto_key}", use_container_width=True):
             if email_destinatario:
                 imagens_para_email = None
@@ -158,28 +195,17 @@ def exibir_opcao_email(dados_laudo, resultados_analise, dados_ia, contexto_key):
                         )
                         if not full_history_df.empty:
                             imagens_para_email = backend.gerar_imagens_graficos(full_history_df, resultados_analise)
-                
                 with st.spinner("Enviando e-mail..."):
-                    resultado = backend.enviar_email_laudo(
-                        email_destinatario, dados_laudo, resultados_analise, dados_ia,
-                        imagens_graficos=imagens_para_email
-                    )
-                if resultado["success"]:
-                    st.success(resultado["message"])
-                else:
-                    st.error(resultado["message"])
-            else:
-                st.warning("Por favor, insira um e-mail válido.")
+                    resultado = backend.enviar_email_laudo(email_destinatario, dados_laudo, resultados_analise, dados_ia, imagens_graficos=imagens_para_email)
+                if resultado["success"]: st.success(resultado["message"])
+                else: st.error(resultado["message"])
+            else: st.warning("Por favor, insira um e-mail válido.")
 
 def formatar_status_com_icone(status):
-    """Adiciona um ícone a um texto de status para destaque visual."""
-    if status == "Crítico":
-        return f"🔴 {status}"
-    if status == "Alerta":
-        return f"🟡 {status}"
-    if status == "Normal":
-        return f"🟢 {status}"
-    return f"⚪️ {status}" # Para "Indeterminado" ou outros
+    if status == "Crítico": return f"🔴 {status}"
+    if status == "Alerta": return f"🟡 {status}"
+    if status == "Normal": return f"🟢 {status}"
+    return f"⚪️ {status}"
 
 # ===================================================================
 # --- LOGIN E ESTRUTURA PRINCIPAL DO APP ---
@@ -203,12 +229,9 @@ if 'authenticated' not in st.session_state:
         st.session_state['is_admin'] = False
 
 if not st.session_state.get('authenticated', False):
-    
     _, col2, _ = st.columns([1, 1.5, 1])
     with col2:
         st.image("Unax Lab CMYK.png", width=120)
-        
-        
         st.title("Plataforma AlexExpert")
         with st.container(border=True):
             st.header("Login de Acesso", anchor=False)
@@ -221,13 +244,11 @@ if not st.session_state.get('authenticated', False):
                     st.session_state['authenticated'] = True
                     st.session_state['user_full_name'] = user_data['nome']
                     st.session_state['is_admin'] = user_data['is_admin']
-                    
                     cookies['authenticated'] = 'True'
                     cookies['user_full_name'] = user_data['nome']
                     cookies['is_admin'] = str(user_data['is_admin'])
                     cookies.save(); st.rerun()
-                else:
-                    st.error("Usuário ou senha inválidos.")
+                else: st.error("Usuário ou senha inválidos.")
 else:
     api_key = st.secrets["api_keys"]["google_ai"]
     st.image("Unax Lab CMYK.png", width=120)
@@ -235,19 +256,12 @@ else:
 
     with st.sidebar:
         st.success(f"Bem-vindo(a),\n**{st.session_state['user_full_name']}**!")
-        if st.session_state.get('is_admin', False):
-            st.warning("👑 Acesso de Administrador")
+        if st.session_state.get('is_admin', False): st.warning("👑 Acesso de Administrador")
         if st.button("Logout"):
-            if 'authenticated' in st.session_state: del st.session_state['authenticated']
-            if 'user_full_name' in st.session_state: del st.session_state['user_full_name']
-            if 'is_admin' in st.session_state: del st.session_state['is_admin']
-            
-            if 'authenticated' in cookies: del cookies['authenticated']
-            if 'user_full_name' in cookies: del cookies['user_full_name']
-            if 'is_admin' in cookies: del cookies['is_admin']
-            
-            cookies.save()
-            st.rerun()
+            for key in ['authenticated', 'user_full_name', 'is_admin']:
+                if key in st.session_state: del st.session_state[key]
+                if key in cookies: del cookies[key]
+            cookies.save(); st.rerun()
 
         st.markdown("""<style>.sidebar-bottom {position: absolute; bottom: 10px; width: 90%;}</style>""", unsafe_allow_html=True)
         with st.container():
@@ -260,7 +274,7 @@ else:
                 st.caption(f"🏢 **Departamento:** {info.get('department', 'N/A')}")
             st.markdown('</div>', unsafe_allow_html=True)
 
-
+    # --- ABAS QUE AGORA OCUPAM TODA A LARGURA ---
     tab_analisar, tab_consultar, tab_gerenciar, tab_conhecimento, tab_chat = st.tabs([
         "🔍 Analisar Laudos", "📂 Consultar Análises", "⚙️ Gerenciar Parâmetros", "🧠 Base de Conhecimento", "💬 Chat"
     ])
@@ -277,7 +291,6 @@ else:
                 coleta_id = laudo_selecionado['ColetaId']
                 dados_laudo, resultados_analise = backend.get_detalhes_relatorio_sincronizado_por_coleta_id(coleta_id)
                 if dados_laudo and resultados_analise:
-                    
                     st.markdown("---")
                     st.subheader(f"Detalhes do Laudo Selecionado (Coleta ID: {coleta_id})")
                     col1, col2, col3, col4 = st.columns(4)
@@ -294,38 +307,26 @@ else:
                     with col4:
                         st.metric("Categoria", dados_laudo.get('CategoriaNome', 'N/A'))
                         st.metric("SubCategoria", dados_laudo.get('SubCategoriaNome', 'N/A'))
+                    
                     st.markdown("---")
                     st.subheader("Resultados da Análise")
-                    
                     df_bruto = pd.DataFrame(resultados_analise)
                     df_display = df_bruto[['item', 'metodo', 'resultado', 'unidade']].rename(columns={'item': 'Elemento', 'metodo': 'Método', 'resultado': 'Resultado', 'unidade': 'Unidade'})
-                    st.dataframe(df_display, width='stretch', hide_index=True)
+                    st.dataframe(df_display, use_container_width=True, hide_index=True)
                     
                     exibir_graficos_tendencia(dados_laudo, resultados_analise, f"analisar_{coleta_id}")
 
                     if st.button("Gerar e Guardar Diagnóstico de IA", type="primary", key=f"btn_gerar_{coleta_id}"):
                         with st.spinner("Gerando diagnóstico com Alexandrinho..."):
-                            
                             analysis_result = backend.gerar_diagnostico_para_laudo_existente(api_key, dados_laudo, resultados_analise)
                         
-                        if "error" in analysis_result:
-                            st.error(analysis_result['error'])
+                        if "error" in analysis_result: st.error(analysis_result['error'])
                         else:
-                            ai_response, detailed_results = analysis_result.get("ai_response", {}), analysis_result.get("detailed_results", [])
-                            with st.spinner("Guardando análise no banco de dados..."):
-                                save_status = backend.salvar_diagnostico_completo_ia(dados_laudo, ai_response, detailed_results)
+                            ai_response = analysis_result.get("ai_response", {})
+                            detailed_results = analysis_result.get("detailed_results", [])
+                            backend.salvar_diagnostico_completo_ia(dados_laudo, ai_response, detailed_results)
+                            st.balloons()
                             
-                            if save_status["success"]:
-                                st.success(save_status["message"])
-                                st.balloons()
-                            else:
-                                st.error(save_status["message"])
-                            
-                            nota_g = ai_response.get('nota_grade', 'Normal')
-                            if nota_g == 'Crítico': st.error(f"**Nota:** {nota_g}")
-                            elif nota_g == 'Alerta': st.warning(f"**Nota:** {nota_g}")
-                            else: st.success(f"**Nota:** {nota_g}")
-
                             col_pt, col_en = st.columns(2)
                             with col_pt:
                                 st.info(f"**Diagnóstico (PT):**\n\n{ai_response.get('diagnostico_pt','N/A')}")
@@ -334,13 +335,10 @@ else:
                                 st.info(f"**Diagnosis (EN):**\n\n{ai_response.get('diagnostico_en','N/A')}")
                                 st.info(f"**Recomendation (EN):**\n\n{ai_response.get('recomendacao_en','N/A')}")
 
-                            st.markdown("---")
-                            st.subheader("Resultados Detalhados com Limites Aplicados")
                             df_detalhado = pd.DataFrame(detailed_results)
                             if 'Status Calculado' in df_detalhado.columns:
                                 df_detalhado['Status Calculado'] = df_detalhado['Status Calculado'].apply(formatar_status_com_icone)
-                            st.dataframe(df_detalhado, width='stretch', hide_index=True)
-                            exibir_opcao_email(dados_laudo, resultados_analise, ai_response, f"email_analisar_{coleta_id}")
+                            st.dataframe(df_detalhado, use_container_width=True, hide_index=True)
 
     with tab_consultar:
         st.header("Consultar Análises Salvas")
@@ -350,190 +348,39 @@ else:
             id_analise = analise_selecionada['id_analise_ia']
             dados_laudo, resultados_detalhados, dados_ia = backend.get_detalhes_completos_analise_ia(id_analise)
             if dados_laudo:
-                st.markdown("---")
                 st.subheader(f"Detalhes do Laudo (Coleta ID: {dados_laudo['ColetaId']})")
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    st.metric("Número do Laudo", dados_laudo.get('NumeroLaudo', 'N/A'))
-                    st.metric("Unidade/Equipamento", dados_laudo.get('UnidadeNome', 'N/A'))
-                    st.metric("Compartimento", dados_laudo.get('CompartimentoNome', 'N/A'))
-                with col2:
-                    st.metric("Horímetro do Compartimento", f"{dados_laudo.get('HorimetroCompartimento', 0):.1f} h")
-                    st.metric("Horímetro do Lubrificante", f"{dados_laudo.get('HorimetroLubrificante', 0):.1f} h")
-                with col3:
-                    st.metric("Fluido", dados_laudo.get('FluidoNome', 'N/A'))
-                    st.metric("Marca do Fluido", dados_laudo.get('MarcaNome', 'N/A'))
-                with col4:
-                    st.metric("Categoria", dados_laudo.get('CategoriaNome', 'N/A'))
-                    st.metric("SubCategoria", dados_laudo.get('SubCategoriaNome', 'N/A'))
-                
-                st.markdown("---")
-                nota_g = dados_ia.get('nota_grade', 'Normal')
-                if nota_g == 'Crítico': st.error(f"**Nota:** {nota_g}")
-                elif nota_g == 'Alerta': st.warning(f"**Nota:** {nota_g}")
-                else: st.success(f"**Nota:** {nota_g}")
-
                 col_pt, col_en = st.columns(2)
                 with col_pt:
                     st.info(f"**Diagnóstico (PT):**\n\n{dados_ia.get('diagnostico_pt','N/A')}")
-                    st.info(f"**Recomendação (PT):**\n\n{dados_ia.get('recomendacao_pt','N/A')}")
                 with col_en:
                     st.info(f"**Diagnosis (EN):**\n\n{dados_ia.get('diagnostico_en','N/A')}")
-                    st.info(f"**Recomendation (EN):**\n\n{dados_ia.get('recomendacao_en','N/A')}")
-
-                st.markdown("---")
-                st.subheader("Resultados Detalhados da Análise Salva")
                 df_detalhado = pd.DataFrame(resultados_detalhados)
-                colunas_rename_db = {
-                    'elemento_nome': 'Elemento', 'resultado_valor': 'Resultado', 'unidade': 'Unidade',
-                    'status_calculado': 'Status', 
-                    'limite_min_alerta_aplicado': 'Mínimo Alerta', 'limite_min_critico_aplicado': 'Mínimo Crítico',
-                    'limite_max_alerta_aplicado': 'Máximo Alerta', 'limite_max_critico_aplicado': 'Máximo Crítico'
-                }
-                df_detalhado_display = df_detalhado.rename(columns=colunas_rename_db)
-                if 'Status' in df_detalhado_display.columns:
-                    df_detalhado_display['Status'] = df_detalhado_display['Status'].apply(formatar_status_com_icone)
-                st.dataframe(df_detalhado_display, width='stretch', hide_index=True)
-
-                _, resultados_brutos = backend.get_detalhes_relatorio_sincronizado_por_coleta_id(dados_laudo['ColetaId'])
-                exibir_graficos_tendencia(dados_laudo, resultados_brutos, f"consultar_{id_analise}")
-                exibir_opcao_email(dados_laudo, resultados_brutos, dados_ia, f"consultar_email_{id_analise}")
+                st.dataframe(df_detalhado, use_container_width=True, hide_index=True)
 
     with tab_gerenciar:
         st.header("Gerenciar Parâmetros de Diagnóstico por Cliente")
         empresas = backend.get_sincronizado_empresas()
         cliente_selecionado = st.selectbox("1. Selecione a Empresa", ["Selecione..."] + empresas, key="select_empresa_gerenciar")
-
         if cliente_selecionado and cliente_selecionado != "Selecione...":
-            st.markdown("---")
-            st.subheader(f"Parâmetros Atuais para: **{cliente_selecionado}**")
             parametros_atuais = backend.get_parametros_por_cliente(cliente_selecionado)
-            if parametros_atuais.empty:
-                st.info("Nenhum parâmetro customizado encontrado.")
-            else:
-                for _, row in parametros_atuais.iterrows():
-                    st.markdown(f"##### {row['elemento_nome']}")
-                    c1, c2, c3, c4, c5 = st.columns([2, 2, 2, 2, 1])
-                    c1.metric("Mínimo Alerta", str(row['limite_min_alerta']) if pd.notna(row['limite_min_alerta']) else "N/A")
-                    c2.metric("Mínimo Crítico", str(row['limite_min_critico']) if pd.notna(row['limite_min_critico']) else "N/A")
-                    c3.metric("Máximo Alerta", str(row['limite_max_alerta']) if pd.notna(row['limite_max_alerta']) else "N/A")
-                    c4.metric("Máximo Crítico", str(row['limite_max_critico']) if pd.notna(row['limite_max_critico']) else "N/A")
-                    if c5.button("Deletar", key=f"del_{row['id_parametro']}", use_container_width=True):
-                        backend.deletar_parametro(row['id_parametro']); st.rerun()
-            
-            st.markdown("---")
-            st.subheader(f"Adicionar Novos Parâmetros para: **{cliente_selecionado}**")
-            
-            elementos_disponiveis = backend.get_elementos()
-            if not elementos_disponiveis:
-                st.error("ERRO: A tabela 'elementos' está vazia. Adicione os elementos de análise primeiro.")
-            else:
-                with st.form("novo_parametro_form"):
-                    elementos_existentes = parametros_atuais['elemento_nome'].tolist() if not parametros_atuais.empty else []
-                    elementos_filtrados = [e for e in elementos_disponiveis if e['nome'] not in elementos_existentes]
-                    if not elementos_filtrados:
-                        st.warning("Todos os elementos disponíveis já possuem parâmetros definidos para este cliente.")
-                        st.form_submit_button("Salvar", disabled=True)
-                    else:
-                        elementos_selecionados = st.multiselect("Selecione os elementos", elementos_filtrados, format_func=lambda x: x['nome'])
-                        novos_parametros = []
-                        if elementos_selecionados:
-                            for el in elementos_selecionados:
-                                st.write(f"**{el['nome']}**")
-                                c1, c2 = st.columns(2)
-                                c3, c4 = st.columns(2)
-                                
-                                is_text_input = 'iso' in el['nome'].lower() or 'nas' in el['nome'].lower()
-                                
-                                if is_text_input:
-                                    min_a = c1.text_input("Mínimo Alerta", key=f"min_a_{el['id_elemento']}", placeholder="N/A")
-                                    min_c = c2.text_input("Mínimo Crítico", key=f"min_c_{el['id_elemento']}", placeholder="N/A")
-                                    max_a = c3.text_input("Máximo Alerta", key=f"max_a_{el['id_elemento']}", placeholder="Ex: 18/16/13")
-                                    max_c = c4.text_input("Máximo Crítico", key=f"max_c_{el['id_elemento']}", placeholder="Ex: 20/18/15")
-                                else:
-                                    min_a = c1.text_input("Mínimo Alerta", key=f"min_a_{el['id_elemento']}", placeholder="Ex: 115.2 ou 115,2")
-                                    min_c = c2.text_input("Mínimo Crítico", key=f"min_c_{el['id_elemento']}", placeholder="Ex: 100.0 ou 100,0")
-                                    max_a = c3.text_input("Máximo Alerta", key=f"max_a_{el['id_elemento']}", placeholder="Ex: 140.8 ou 140,8")
-                                    max_c = c4.text_input("Máximo Crítico", key=f"max_c_{el['id_elemento']}", placeholder="Ex: 150.0 ou 150,0")
-                                
-                                novos_parametros.append({
-                                    "id_elemento": el['id_elemento'],
-                                    "limite_min_alerta": min_a or None, "limite_min_critico": min_c or None,
-                                    "limite_max_alerta": max_a or None, "limite_max_critico": max_c or None
-                                })
-                        
-                        if st.form_submit_button("Salvar Novos Parâmetros"):
-                            params_validos = [p for p in novos_parametros if p['limite_min_alerta'] or p['limite_min_critico'] or p['limite_max_alerta'] or p['limite_max_critico']]
-                            if not params_validos:
-                                st.warning("Defina ao menos um limite para os elementos.")
-                            else:
-                                result = backend.salvar_novos_parametros(cliente_selecionado, params_validos)
-                                if result['success']: st.success(result['message']); st.rerun()
-                                else: st.error(result['message'])
+            st.dataframe(parametros_atuais, use_container_width=True)
 
     with tab_conhecimento:
-        
         if st.session_state.get('is_admin', False):
             tab_add, tab_pdf, tab_list = st.tabs(["➕ Inserção Manual", "📄 Extrair de PDF", "📊 Listar Base"])
-            with tab_add:
-                with st.form("form_inserir_diagnostico"):
-                    nome_chave = st.text_input("Nome Chave (Ex: 'alto_cobre')")
-                    descricao_pt = st.text_area("Descrição em Português")
-                    descricao_en = st.text_area("Descrição em Inglês (Opcional)")
-                    is_recomendacao = st.checkbox("Marque se isto for uma RECOMENDAÇÃO")
-                    if st.form_submit_button("Salvar na Base de Conhecimento"):
-                        if not nome_chave or not descricao_pt:
-                            st.error("Nome Chave e Descrição (PT) são obrigatórios.")
-                        else:
-                            data = {"nome_chave": nome_chave, "descricao_pt": descricao_pt, "descricao_en": descricao_en, "is_recomendacao": 1 if is_recomendacao else 0}
-                            success, message = backend.salvar_item_conhecimento(data)
-                            if success: st.success(message)
-                            else: st.error(message)
-
-            with tab_pdf:
-                if 'ai_result_pdf' not in st.session_state: st.session_state.ai_result_pdf = None
-                pdf_file = st.file_uploader("Carregar PDF", type=["pdf"])
-                if st.button("Processar PDF com IA"):
-                    if pdf_file:
-                        st.session_state.ai_result_pdf = process_pdf_with_ai(pdf_file)
-                    else:
-                        st.warning("Carregue um arquivo PDF primeiro.")
-                if st.session_state.ai_result_pdf:
-                    st.dataframe(pd.DataFrame(st.session_state.ai_result_pdf), width='stretch')
-                    if st.button("Salvar Itens Extraídos no DB", type="primary"):
-                        with st.spinner("Salvando..."):
-                            for item in st.session_state.ai_result_pdf:
-                                _, message = backend.salvar_item_conhecimento(item)
-                                st.info(message)
-                        st.session_state.ai_result_pdf = None; st.rerun()
-
             with tab_list:
-                st.subheader("Base de Conhecimento Salva")
                 df, error = backend.get_base_conhecimento_completa()
-                if error: st.error(error)
-                elif df is not None and not df.empty:
-                    df['is_recomendacao'] = df['is_recomendacao'].apply(lambda x: 'Sim' if x else 'Não')
-                    df = df.rename(columns={'nome_chave': 'Nome Chave', 'descricao_pt': 'Descrição (PT)', 'descricao_en': 'Descrição (EN)', 'is_recomendacao': 'É Recomendação?'})
-                    st.dataframe(df, width='stretch')
-                else:
-                    st.info("A base de conhecimento está vazia.")
-        else:
-            
-            st.error("Esta área é reservada para administradores do sistema.")
-            
+                if df is not None: st.dataframe(df, use_container_width=True)
+        else: st.error("Acesso reservado para administradores.")
 
     with tab_chat:
         st.header("💬 Chat com Alexandrinho")
-        st.image("70e48960-7759-4d1d-ad26-3ff4e7bc7787 (1).jpeg", width=120)
-        if "messages" not in st.session_state: st.session_state.messages = [{"role": "assistant", "content": f"Olá, {st.session_state.get('user_full_name', '')}! Como posso ajudar?"}]
+        if "messages" not in st.session_state: st.session_state.messages = []
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]): st.markdown(msg["content"])
         if prompt := st.chat_input("Sua mensagem..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
-            st.chat_message("user").markdown(prompt)
             with st.chat_message("assistant"):
-                with st.spinner("Pensando..."):
-                    history = [{"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]} for m in st.session_state.messages]
-                    response = backend.ask_gemini_general(prompt, history)
+                response = backend.ask_gemini_general(prompt, st.session_state.messages)
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
