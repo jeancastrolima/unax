@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import mysql.connector
+import pymysql
 import streamlit as st
 from datetime import datetime, timedelta
 import google.generativeai as genai
