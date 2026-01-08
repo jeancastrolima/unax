@@ -300,7 +300,7 @@ else:
     st.image("Unax Lab CMYK.png", width=120)
     st.title("Plataforma AlexExpert")
 
-        with st.sidebar:
+with st.sidebar:
     st.image("https://via.placeholder.com/150x50?text=Unax+Lab", width=120)
     st.divider()
     st.markdown(f"👤 **{st.session_state.get('user_full_name')}**")
