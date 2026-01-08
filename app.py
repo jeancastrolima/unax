@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime, timedelta
-import backend
+import backend  # Certifique-se que o backend.py está na mesma pasta
 import pandas as pd
 from streamlit_cookies_manager import EncryptedCookieManager
 import time
@@ -9,6 +9,73 @@ import json
 import re
 import fitz  # PyMuPDF
 from io import BytesIO
+
+# ===================================================================
+# --- CONFIGURAÇÃO DA PÁGINA E CSS (ESTILO BOOTSTRAP) ---
+# ===================================================================
+st.set_page_config(
+    page_title="AlexExpert | Unax Lab",
+    page_icon="🧪",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+def local_css():
+    st.markdown("""
+        <style>
+        /* Importando fonte moderna */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        html, body, [class*="css"] {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Estilo para simular Cards do Bootstrap */
+        div[data-testid="stVerticalBlock"] > div[style*="border"] {
+            background-color: #ffffff;
+            border: 1px solid #e6e9ef !important;
+            border-radius: 12px !important;
+            padding: 20px !important;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 15px;
+        }
+
+        /* Melhorando botões */
+        .stButton>button {
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        
+        .stButton>button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        /* Status Colors */
+        .status-normal { color: #28a745; font-weight: bold; }
+        .status-alerta { color: #ffc107; font-weight: bold; }
+        .status-critico { color: #dc3545; font-weight: bold; }
+
+        /* Sidebar custom */
+        [data-testid="stSidebar"] {
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+        }
+        
+        /* Sidebar footer fix */
+        .sidebar-footer {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 260px;
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+local_css()
 
 
 
