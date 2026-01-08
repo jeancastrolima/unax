@@ -1,0 +1,5 @@
+
+genai.configure(api_key=st.secrets["api_keys"]["google_ai"])
+modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+st.write("Modelos compatíveis:", modelos)
+st.set_page_config(page_title="AlexExpert", page_icon="🚢", layout="wide")
