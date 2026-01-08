@@ -85,4 +85,4 @@ uritemplate==4.2.0
 urllib3==2.5.0
 watchdog==6.0.0
 PyMuPDF
-
+mysql-connector-python
