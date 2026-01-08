@@ -300,23 +300,20 @@ else:
     st.image("Unax Lab CMYK.png", width=120)
     st.title("Plataforma AlexExpert")
 
-    with st.sidebar:
-        st.success(f"Bem-vindo(a),\n**{st.session_state['user_full_name']}**!")
-        if st.session_state.get('is_admin', False):
-            st.warning("👑 Acesso de Administrador")
-        if st.button("Logout"):
-            if 'authenticated' in st.session_state: del st.session_state['authenticated']
-            if 'user_full_name' in st.session_state: del st.session_state['user_full_name']
-            if 'is_admin' in st.session_state: del st.session_state['is_admin']
-            
-            if 'authenticated' in cookies: del cookies['authenticated']
-            if 'user_full_name' in cookies: del cookies['user_full_name']
-            if 'is_admin' in cookies: del cookies['is_admin']
-            
-            cookies.save()
-            st.rerun()
+        with st.sidebar:
+    st.image("https://via.placeholder.com/150x50?text=Unax+Lab", width=120)
+    st.divider()
+    st.markdown(f"👤 **{st.session_state.get('user_full_name')}**")
+    if st.session_state.get('is_admin'):
+        st.caption("🛡️ Administrador")
+    
+    if st.button("Sair", icon="🚀"):
+        cookies['authenticated'] = 'False'
+        cookies.save()
+        st.session_state.clear()
+        st.rerun()
 
-        st.markdown("""<style>.sidebar-bottom {position: absolute; bottom: 10px; width: 90%;}</style>""", unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-footer">AlexExpert v2.0<br>Unax Lab - Inteligência em Fluidos</div>', unsafe_allow_html=True)
         with st.container():
             st.markdown('<div class="sidebar-bottom">', unsafe_allow_html=True)
             info = backend.get_system_info()
