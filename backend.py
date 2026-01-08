@@ -1,6 +1,7 @@
 import os
 import pandas as pd
-import pymysql
+import mysql.connector  # CORREÇÃO: Importando a biblioteca correta
+from mysql.connector import Error # CORREÇÃO: Para capturar os erros especificamente
 import streamlit as st
 from datetime import datetime, timedelta
 import google.generativeai as genai
@@ -33,14 +34,14 @@ except Exception as e:
     st.stop()
 
 def get_db_connection():
-    """Estabelece conexão com o banco de dados."""
+    """Estabelece conexão com o banco de dados utilizando mysql-connector."""
     try:
+        # Agora o Python sabe o que é mysql.connector
         conn = mysql.connector.connect(**DB_CONFIG)
         return conn
-    except mysql.connector.Error as e:
+    except Error as e: # Simplificado para usar o Error importado
         st.error(f"Erro fatal de conexão com a Base de Dados: {e}")
         return None
-
 # ===================================================================
 # --- FUNÇÕES DE AUTENTICAÇÃO E IA ---
 # ===================================================================
