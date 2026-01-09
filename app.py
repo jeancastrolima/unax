@@ -370,69 +370,45 @@ else:
                     
                     exibir_graficos_tendencia(dados_laudo, resultados_analise, f"analisar_{coleta_id}")
 
-                    # 1. Garante que o ID existe para não dar NameError
-coleta_id = dados_laudo.get('id_coleta', 'geral')
+                    if st.button("Gerar e Guardar Diagnóstico de IA", type="primary", key=f"btn_gerar_{coleta_id}"):
+                        with st.spinner("Gerando diagnóstico com Alexandrinho..."):
+                            
+                            analysis_result = backend.gerar_diagnostico_para_laudo_existente(api_key, dados_laudo, resultados_analise)
+                        
+                        if "error" in analysis_result:
+                            st.error(analysis_result['error'])
+                        else:
+                            ai_response, detailed_results = analysis_result.get("ai_response", {}), analysis_result.get("detailed_results", [])
+                            with st.spinner("Guardando análise no banco de dados..."):
+                                save_status = backend.salvar_diagnostico_completo_ia(dados_laudo, ai_response, detailed_results)
+                            
+                            if save_status["success"]:
+                                st.success(save_status["message"])
+                                st.balloons()
+                            else:
+                                st.error(save_status["message"])
+                            
+                            nota_g = ai_response.get('nota_grade', 'Normal')
+                            if nota_g == 'Crítico': st.error(f"**Nota:** {nota_g}")
+                            elif nota_g == 'Alerta': st.warning(f"**Nota:** {nota_g}")
+                            else: st.success(f"**Nota:** {nota_g}")
 
-if st.button("Gerar e Guardar Diagnóstico de IA", type="primary", key=f"btn_gerar_{coleta_id}"):
-    
-    # 2. Criamos o espaço para o robô
-    espaco_robot = st.empty()
-    
-    with espaco_robot.container():
-        st.markdown("### 🤖 Alexandrinho está analisando e dançando...")
-        # GIF de um robô dançando
-        st.image("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJueXByeHh3bm9pZzJ6NXp6ZzR0eXBtZzZ4eHh4eHh4eHh4eHh4JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCB3aXRoX2NfcmVjb3Jk/3o7TKMGpxxcaXUvO0w/giphy.gif", width=250)
+                            col_pt, col_en = st.columns(2)
+                            with col_pt:
+                                st.info(f"**Diagnóstico (PT):**\n\n{ai_response.get('diagnostico_pt','N/A')}")
+                                st.info(f"**Recomendação (PT):**\n\n{ai_response.get('recomendacao_pt','N/A')}")
+                            with col_en:
+                                st.info(f"**Diagnosis (EN):**\n\n{ai_response.get('diagnostico_en','N/A')}")
+                                st.info(f"**Recomendation (EN):**\n\n{ai_response.get('recomendacao_en','N/A')}")
 
-    try:
-        # 3. Processamento
-        with st.spinner("Gerando diagnóstico com Alexandrinho..."):
-            analysis_result = backend.gerar_diagnostico_para_laudo_existente(api_key, dados_laudo, resultados_analise)
-        
-        if "error" in analysis_result:
-            espaco_robot.empty() # Remove o robô se der erro
-            st.error(analysis_result['error'])
-        else:
-            ai_response, detailed_results = analysis_result.get("ai_response", {}), analysis_result.get("detailed_results", [])
-            
-            with st.spinner("Guardando análise no banco de dados..."):
-                save_status = backend.salvar_diagnostico_completo_ia(dados_laudo, ai_response, detailed_results)
-            
-            # 4. LIMPA O ROBÔ para mostrar o laudo
-            espaco_robot.empty()
+                            st.markdown("---")
+                            st.subheader("Resultados Detalhados com Limites Aplicados")
+                            df_detalhado = pd.DataFrame(detailed_results)
+                            if 'Status Calculado' in df_detalhado.columns:
+                                df_detalhado['Status Calculado'] = df_detalhado['Status Calculado'].apply(formatar_status_com_icone)
+                            st.dataframe(df_detalhado, width='stretch', hide_index=True)
+                            exibir_opcao_email(dados_laudo, resultados_analise, ai_response, f"email_analisar_{coleta_id}")
 
-            if save_status["success"]:
-                st.success(save_status["message"])
-                st.balloons()
-            else:
-                st.error(save_status["message"])
-            
-            # --- Exibição dos Resultados ---
-            nota_g = ai_response.get('nota_grade', 'Normal')
-            if nota_g == 'Crítico': st.error(f"**Nota:** {nota_g}")
-            elif nota_g == 'Alerta': st.warning(f"**Nota:** {nota_g}")
-            else: st.success(f"**Nota:** {nota_g}")
-
-            col_pt, col_en = st.columns(2)
-            with col_pt:
-                st.info(f"**Diagnóstico (PT):**\n\n{ai_response.get('diagnostico_pt','N/A')}")
-                st.info(f"**Recomendação (PT):**\n\n{ai_response.get('recomendacao_pt','N/A')}")
-            with col_en:
-                st.info(f"**Diagnosis (EN):**\n\n{ai_response.get('diagnostico_en','N/A')}")
-                st.info(f"**Recomendation (EN):**\n\n{ai_response.get('recomendacao_en','N/A')}")
-
-            st.markdown("---")
-            st.subheader("Resultados Detalhados com Limites Aplicados")
-            df_detalhado = pd.DataFrame(detailed_results)
-            if 'Status Calculado' in df_detalhado.columns:
-                df_detalhado['Status Calculado'] = df_detalhado['Status Calculado'].apply(formatar_status_com_icone)
-            
-            st.dataframe(df_detalhado, width='stretch', hide_index=True)
-            exibir_opcao_email(dados_laudo, resultados_analise, ai_response, f"email_analisar_{coleta_id}")
-
-    except Exception as e:
-        espaco_robot.empty()
-        st.error(f"Erro ao processar: {e}")
-        
     with tab_consultar:
         st.header("Consultar Análises Salvas")
         analises = backend.get_analises_ia_salvas()
