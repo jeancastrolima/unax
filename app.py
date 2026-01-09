@@ -371,7 +371,7 @@ else:
                     exibir_graficos_tendencia(dados_laudo, resultados_analise, f"analisar_{coleta_id}")
 
                     if st.button("Gerar e Guardar Diagnóstico de IA", type="primary", key=f"btn_gerar_{coleta_id}"):
-                    if st.button("Gerar e Guardar Diagnóstico de IA", type="primary", key=f"btn_gerar_{coleta_id}"):
+    if st.button("Gerar e Guardar Diagnóstico de IA", type="primary", key=f"btn_gerar_{coleta_id}"):
 
     robot_placeholder = st.empty()
 
