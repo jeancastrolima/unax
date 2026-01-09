@@ -14,7 +14,7 @@ from io import BytesIO
 # --- CONFIGURAÇÃO DA PÁGINA E CSS (ESTILO BOOTSTRAP) ---
 # ===================================================================
 st.set_page_config(
-    page_title="AlexExpert | Unax Lab",
+    page_title="Alexpert | Unax Lab",
     page_icon="🧪",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -276,7 +276,7 @@ if not st.session_state.get('authenticated', False):
         st.image("Unax Lab CMYK.png", width=120)
         
         
-        st.title("Plataforma AlexExpert")
+        st.title("Plataforma Alexpert")
         with st.container(border=True):
             st.header("Login de Acesso", anchor=False)
             username = st.text_input("Usuário", key="login_user")
@@ -298,7 +298,7 @@ if not st.session_state.get('authenticated', False):
 else:
     api_key = st.secrets["api_keys"]["google_ai"]
     st.image("Unax Lab CMYK.png", width=120)
-    st.title("Plataforma AlexExpert")
+    st.title("Plataforma Alexpert")
 
     with st.sidebar:
         st.success(f"Bem-vindo(a),\n**{st.session_state['user_full_name']}**!")
