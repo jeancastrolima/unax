@@ -370,44 +370,68 @@ else:
                     
                     exibir_graficos_tendencia(dados_laudo, resultados_analise, f"analisar_{coleta_id}")
 
-                    if st.button("Gerar e Guardar Diagnóstico de IA", type="primary", key=f"btn_gerar_{coleta_id}"):
-                        with st.spinner("Gerando diagnóstico com Alexandrinho..."):
-                            
-                            analysis_result = backend.gerar_diagnostico_para_laudo_existente(api_key, dados_laudo, resultados_analise)
-                        
-                        if "error" in analysis_result:
-                            st.error(analysis_result['error'])
-                        else:
-                            ai_response, detailed_results = analysis_result.get("ai_response", {}), analysis_result.get("detailed_results", [])
-                            with st.spinner("Guardando análise no banco de dados..."):
-                                save_status = backend.salvar_diagnostico_completo_ia(dados_laudo, ai_response, detailed_results)
-                            
-                            if save_status["success"]:
-                                st.success(save_status["message"])
-                                st.balloons()
-                            else:
-                                st.error(save_status["message"])
-                            
-                            nota_g = ai_response.get('nota_grade', 'Normal')
-                            if nota_g == 'Crítico': st.error(f"**Nota:** {nota_g}")
-                            elif nota_g == 'Alerta': st.warning(f"**Nota:** {nota_g}")
-                            else: st.success(f"**Nota:** {nota_g}")
+                    # 1. Defina a URL do robô dançando (pode ser um GIF do Giphy ou um arquivo local)
+ROBO_DANCANDO = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDIzdGkxNmp2dnFwdTJ6M3ZyNXE1amh4ejhwMWg2MnRmbHpuYXV4diZlcD12MV9naWZzX3NlYXJjaCZjdD1n/uV6R7IyafWXtWkCkYW/giphy.gif"
 
-                            col_pt, col_en = st.columns(2)
-                            with col_pt:
-                                st.info(f"**Diagnóstico (PT):**\n\n{ai_response.get('diagnostico_pt','N/A')}")
-                                st.info(f"**Recomendação (PT):**\n\n{ai_response.get('recomendacao_pt','N/A')}")
-                            with col_en:
-                                st.info(f"**Diagnosis (EN):**\n\n{ai_response.get('diagnostico_en','N/A')}")
-                                st.info(f"**Recomendation (EN):**\n\n{ai_response.get('recomendacao_en','N/A')}")
+if st.button("Gerar e Guardar Diagnóstico de IA", type="primary", key=f"btn_gerar_{coleta_id}"):
+    
+    # Criamos um container vazio para o robô
+    placeholder_robot = st.empty()
+    
+    with placeholder_robot.container():
+        st.markdown(f"### 🤖 Alexandrinho está analisando...")
+        st.image(ROBO_DANCANDO, width=200) # Exibe o robô
+    
+    # --- Início do Processamento ---
+    try:
+        # O spinner original pode continuar ou ser removido, já que temos o robô
+        with st.spinner("Gerando diagnóstico..."):
+            analysis_result = backend.gerar_diagnostico_para_laudo_existente(api_key, dados_laudo, resultados_analise)
+        
+        if "error" in analysis_result:
+            placeholder_robot.empty() # Remove o robô se der erro
+            st.error(analysis_result['error'])
+        else:
+            ai_response, detailed_results = analysis_result.get("ai_response", {}), analysis_result.get("detailed_results", [])
+            
+            with st.spinner("Guardando análise no banco de dados..."):
+                save_status = backend.salvar_diagnostico_completo_ia(dados_laudo, ai_response, detailed_results)
+            
+            # --- Fim do Processamento ---
+            placeholder_robot.empty() # O robô para de dançar e some aqui!
 
-                            st.markdown("---")
-                            st.subheader("Resultados Detalhados com Limites Aplicados")
-                            df_detalhado = pd.DataFrame(detailed_results)
-                            if 'Status Calculado' in df_detalhado.columns:
-                                df_detalhado['Status Calculado'] = df_detalhado['Status Calculado'].apply(formatar_status_com_icone)
-                            st.dataframe(df_detalhado, width='stretch', hide_index=True)
-                            exibir_opcao_email(dados_laudo, resultados_analise, ai_response, f"email_analisar_{coleta_id}")
+            if save_status["success"]:
+                st.success(save_status["message"])
+                st.balloons()
+            else:
+                st.error(save_status["message"])
+            
+            # Exibição dos resultados (Nota, Diagnósticos, etc.)
+            nota_g = ai_response.get('nota_grade', 'Normal')
+            if nota_g == 'Crítico': st.error(f"**Nota:** {nota_g}")
+            elif nota_g == 'Alerta': st.warning(f"**Nota:** {nota_g}")
+            else: st.success(f"**Nota:** {nota_g}")
+
+            col_pt, col_en = st.columns(2)
+            with col_pt:
+                st.info(f"**Diagnóstico (PT):**\n\n{ai_response.get('diagnostico_pt','N/A')}")
+                st.info(f"**Recomendação (PT):**\n\n{ai_response.get('recomendacao_pt','N/A')}")
+            with col_en:
+                st.info(f"**Diagnosis (EN):**\n\n{ai_response.get('diagnostico_en','N/A')}")
+                st.info(f"**Recomendation (EN):**\n\n{ai_response.get('recomendacao_en','N/A')}")
+
+            st.markdown("---")
+            st.subheader("Resultados Detalhados com Limites Aplicados")
+            df_detalhado = pd.DataFrame(detailed_results)
+            if 'Status Calculado' in df_detalhado.columns:
+                df_detalhado['Status Calculado'] = df_detalhado['Status Calculado'].apply(formatar_status_com_icone)
+            st.dataframe(df_detalhado, width='stretch', hide_index=True)
+            exibir_opcao_email(dados_laudo, resultados_analise, ai_response, f"email_analisar_{coleta_id}")
+
+    except Exception as e:
+        placeholder_robot.empty()
+        st.error(f"Ocorreu um erro inesperado: {e}")
+
 
     with tab_consultar:
         st.header("Consultar Análises Salvas")
