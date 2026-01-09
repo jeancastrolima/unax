@@ -371,7 +371,18 @@ else:
                     exibir_graficos_tendencia(dados_laudo, resultados_analise, f"analisar_{coleta_id}")
 
                     if st.button("Gerar e Guardar Diagnóstico de IA", type="primary", key=f"btn_gerar_{coleta_id}"):
-                        with st.spinner("Gerando diagnóstico com Alexandrinho..."):
+                        robot_placeholder = st.empty()
+robot_placeholder.markdown(
+    """
+    <div style="display:flex; justify-content:center; margin-top:20px;">
+        <img src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDIzdGkxNmp2dnFwdTJ6M3ZyNXE1amh4ejhwMWg2MnRmbHpuYXV4diZlcD12MV9naWZzX3NlYXJjaCZjdD1n/uV6R7IyafWXtWkCkYW/giphy.gif"
+             width="180">
+    </div>
+    <p style="text-align:center; font-weight:600;">🤖 Alexandrinho analisando...</p>
+    """,
+    unsafe_allow_html=True
+)
+
                             
                             analysis_result = backend.gerar_diagnostico_para_laudo_existente(api_key, dados_laudo, resultados_analise)
                         
